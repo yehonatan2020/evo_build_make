@@ -49,19 +49,13 @@ def main(argv):
 
   board_uses_vendorimage = OPTIONS.info_dict.get(
       "board_uses_vendorimage") == "true"
-  board_builds_vendorimage =  OPTIONS.info_dict.get(
-      "board_builds_vendorimage") == "true"
-  target_files_dir = None
 
-  if board_builds_vendorimage:
+  if board_uses_vendorimage:
     target_files_dir = "VENDOR"
-  elif not board_uses_vendorimage:
-    target_files_dir = "SYSTEM/vendor"
+  else:
+    target_files_dir = "SYSTEM"
 
   def output_sink(fn, data):
-    if target_files_dir is None:
-      return
-
     with open(os.path.join(output_dir, target_files_dir,
                            *fn.split("/")), "wb") as f:
       f.write(data)

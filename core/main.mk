@@ -260,10 +260,6 @@ ifdef TARGET_RECOVERY_DEFAULT_ROTATION
 ADDITIONAL_VENDOR_PROPERTIES += \
     ro.minui.default_rotation=$(TARGET_RECOVERY_DEFAULT_ROTATION)
 endif
-ifdef TARGET_RECOVERY_DEFAULT_TOUCH_ROTATION
-ADDITIONAL_VENDOR_PROPERTIES += \
-    ro.minui.default_touch_rotation=$(TARGET_RECOVERY_DEFAULT_TOUCH_ROTATION)
-endif
 ifdef TARGET_RECOVERY_OVERSCAN_PERCENT
 ADDITIONAL_VENDOR_PROPERTIES += \
     ro.minui.overscan_percent=$(TARGET_RECOVERY_OVERSCAN_PERCENT)
@@ -412,7 +408,7 @@ ifneq (,$(user_variant))
 
 else # !user_variant
   # Turn on checkjni for non-user builds.
-  # ADDITIONAL_SYSTEM_PROPERTIES += ro.kernel.android.checkjni=1
+  ADDITIONAL_SYSTEM_PROPERTIES += ro.kernel.android.checkjni=1
   # Set device insecure for non-user builds.
   ADDITIONAL_SYSTEM_PROPERTIES += ro.secure=0
   # Allow mock locations by default for non user builds
@@ -422,6 +418,8 @@ endif # !user_variant
 ifeq (true,$(strip $(enable_target_debugging)))
   # Target is more debuggable and adbd is on by default
   ADDITIONAL_SYSTEM_PROPERTIES += ro.debuggable=1
+  # Enable Dalvik lock contention logging.
+  ADDITIONAL_SYSTEM_PROPERTIES += dalvik.vm.lockprof.threshold=500
 else # !enable_target_debugging
   # Target is less debuggable and adbd is off by default
   ADDITIONAL_SYSTEM_PROPERTIES += ro.debuggable=0
@@ -491,10 +489,6 @@ ADDITIONAL_SYSTEM_PROPERTIES += net.bt.name=Android
 ADDITIONAL_SYSTEM_PROPERTIES += ro.force.debuggable=0
 
 # ------------------------------------------------------------
-# Include vendor specific additions to build properties
--include vendor/lineage/build/core/main.mk
-
-# ------------------------------------------------------------
 # Define a function that, given a list of module tags, returns
 # non-empty if that module should be installed in /system.
 
@@ -541,8 +535,6 @@ ADDITIONAL_PRODUCT_PROPERTIES := $(strip $(ADDITIONAL_PRODUCT_PROPERTIES))
 
 ifneq ($(PRODUCT_ENFORCE_RRO_TARGETS),)
 ENFORCE_RRO_SOURCES :=
-ENFORCE_RRO_PACKAGES_PRODUCT :=
-ENFORCE_RRO_PACKAGES_VENDOR :=
 endif
 
 # Color-coded warnings including current module info
@@ -616,22 +608,6 @@ endef
 # -------------------------------------------------------------------
 ifneq ($(PRODUCT_ENFORCE_RRO_TARGETS),)
 $(call generate_all_enforce_rro_packages)
-
-_modules_with_rro_suffix :=
-$(foreach m,$(PRODUCT_PACKAGES), \
-  $(eval _modules_with_rro_suffix += $$(m)__$(PRODUCT_NAME)__auto_generated_rro_%))
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := enforce_rro_packages_product
-LOCAL_MODULE_TAGS := optional
-LOCAL_REQUIRED_MODULES := $(filter $(_modules_with_rro_suffix),$(ENFORCE_RRO_PACKAGES_PRODUCT))
-include $(BUILD_PHONY_PACKAGE)
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := enforce_rro_packages_vendor
-LOCAL_MODULE_TAGS := optional
-LOCAL_REQUIRED_MODULES := $(filter $(_modules_with_rro_suffix),$(ENFORCE_RRO_PACKAGES_VENDOR))
-include $(BUILD_PHONY_PACKAGE)
 endif
 
 # -------------------------------------------------------------------

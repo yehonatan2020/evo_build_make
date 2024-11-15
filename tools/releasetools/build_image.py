@@ -312,7 +312,7 @@ def BuildImageMkfs(in_dir, prop_dict, out_file, target_out, fs_config):
       base_fs_file = ConvertBlockMapToBaseFs(prop_dict["base_fs_file"])
       build_command.extend(["-d", base_fs_file])
     build_command.extend(["-L", prop_dict["mount_point"]])
-    if "extfs_inode_count" in prop_dict and int(prop_dict["extfs_inode_count"]) >= 0:
+    if "extfs_inode_count" in prop_dict:
       build_command.extend(["-i", prop_dict["extfs_inode_count"]])
     if "extfs_rsv_pct" in prop_dict:
       build_command.extend(["-M", prop_dict["extfs_rsv_pct"]])
@@ -554,15 +554,10 @@ def BuildImage(in_dir, prop_dict, out_file, target_out=None):
           "partition_size" not in prop_dict):
     # If partition_size is not defined, use output of `du' + reserved_size.
     # For compressed file system, it's better to use the compressed size to avoid wasting space.
-    if fs_type.startswith("erofs") or fs_type.startswith("squash"):
+    if fs_type.startswith("erofs"):
       mkfs_output = BuildImageMkfs(
           in_dir, prop_dict, out_file, target_out, fs_config)
-      sparse_flag = False
-      if fs_type.startswith("erofs") and "erofs_sparse_flag" in prop_dict:
-        sparse_flag = True
-      if fs_type.startswith("squash") and "squashfs_sparse_flag" in prop_dict:
-        sparse_flag = True
-      if sparse_flag and not disable_sparse:
+      if "erofs_sparse_flag" in prop_dict and not disable_sparse:
         image_path = UnsparseImage(out_file, replace=False)
         size = GetDiskUsage(image_path)
         os.remove(image_path)
@@ -611,20 +606,19 @@ def BuildImage(in_dir, prop_dict, out_file, target_out=None):
           size = common.RoundUpTo4K(size)
         else:
           size = ((size + block_size - 1) // block_size) * block_size
-      if int(prop_dict["extfs_inode_count"]) >= 0:
-        extfs_inode_count = prop_dict["extfs_inode_count"]
-        inodes = int(fs_dict.get("Inode count", extfs_inode_count))
-        inodes -= int(fs_dict.get("Free inodes", "0"))
-        # add .2% margin or 1 inode, whichever is greater
-        spare_inodes = inodes * 2 // 1000
-        min_spare_inodes = 1
-        if spare_inodes < min_spare_inodes:
-          spare_inodes = min_spare_inodes
-        inodes += spare_inodes
-        prop_dict["extfs_inode_count"] = str(inodes)
-        logger.info(
-            "Allocating %d Inodes for %s.", inodes, out_file)
+      extfs_inode_count = prop_dict["extfs_inode_count"]
+      inodes = int(fs_dict.get("Inode count", extfs_inode_count))
+      inodes -= int(fs_dict.get("Free inodes", "0"))
+      # add .2% margin or 1 inode, whichever is greater
+      spare_inodes = inodes * 2 // 1000
+      min_spare_inodes = 1
+      if spare_inodes < min_spare_inodes:
+        spare_inodes = min_spare_inodes
+      inodes += spare_inodes
+      prop_dict["extfs_inode_count"] = str(inodes)
       prop_dict["partition_size"] = str(size)
+      logger.info(
+          "Allocating %d Inodes for %s.", inodes, out_file)
     elif fs_type.startswith("f2fs") and prop_dict.get("f2fs_compress") == "true":
       prop_dict["partition_size"] = str(size)
       prop_dict["image_size"] = str(size)

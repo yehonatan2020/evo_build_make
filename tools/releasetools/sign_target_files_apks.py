@@ -271,10 +271,6 @@ def IsOtaPackage(fp):
 
 def IsEntryOtaPackage(input_zip, filename):
   with input_zip.open(filename, "r") as fp:
-    external_attr = input_zip.getinfo(filename).external_attr
-    if stat.S_ISLNK(external_attr >> 16):
-      return IsEntryOtaPackage(input_zip,
-          os.path.join(os.path.dirname(filename), fp.read().decode()))
     return IsOtaPackage(fp)
 
 
@@ -1109,7 +1105,6 @@ def BuildKeyMap(misc_info, key_mapping_options):
           devkeydir + "/platform": d + "/platform",
           devkeydir + "/networkstack": d + "/networkstack",
           devkeydir + "/sdk_sandbox": d + "/sdk_sandbox",
-          devkeydir + "/bluetooth"   : d + "/bluetooth",
       })
     else:
       OPTIONS.key_map[s] = d

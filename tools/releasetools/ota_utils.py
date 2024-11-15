@@ -45,7 +45,7 @@ OPTIONS.boot_variable_file = None
 
 METADATA_NAME = 'META-INF/com/android/metadata'
 METADATA_PROTO_NAME = 'META-INF/com/android/metadata.pb'
-UNZIP_PATTERN = ['IMAGES/*', 'INSTALL/*', 'META/*', 'OTA/*',
+UNZIP_PATTERN = ['IMAGES/*', 'META/*', 'OTA/*',
                  'RADIO/*', '*/build.prop', '*/default.prop', '*/build.default', "*/etc/vintf/*"]
 SECURITY_PATCH_LEVEL_PROP_NAME = "ro.build.version.security_patch"
 TARGET_FILES_IMAGES_SUBDIR = ["IMAGES", "PREBUILT_IMAGES", "RADIO"]
@@ -223,13 +223,9 @@ def UpdateDeviceState(device_state, build_info, boot_variable_values,
       partition_devices = set()
       partition_fingerprints = set()
       for runtime_build_info in build_info_set:
-        try:
-            partition_devices.add(
-                runtime_build_info.GetPartitionBuildProp('ro.product.device',
-                                                         partition))
-        except common.ExternalError:
-            partition_devices.add(
-                runtime_build_info.GetBuildProp('ro.product.device'))
+        partition_devices.add(
+            runtime_build_info.GetPartitionBuildProp('ro.product.device',
+                                                     partition))
         partition_fingerprints.add(
             runtime_build_info.GetPartitionFingerprint(partition))
 

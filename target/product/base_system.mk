@@ -82,6 +82,7 @@ PRODUCT_PACKAGES += \
     CtsShimPrivPrebuilt \
     debuggerd\
     device_config \
+    DeviceDiagnostics \
     dmctl \
     dnsmasq \
     dmesgd \
@@ -444,7 +445,7 @@ PRODUCT_COPY_FILES += system/core/rootdir/init.zygote32.rc:system/etc/init/hw/in
 PRODUCT_VENDOR_PROPERTIES += ro.zygote?=zygote32
 
 PRODUCT_SYSTEM_PROPERTIES += debug.atrace.tags.enableflags=0
-PRODUCT_SYSTEM_PROPERTIES += persist.traced.enable=0
+PRODUCT_SYSTEM_PROPERTIES += persist.traced.enable=1
 
 # Packages included only for eng or userdebug builds, previously debug tagged
 PRODUCT_PACKAGES_DEBUG := \
@@ -474,6 +475,7 @@ PRODUCT_PACKAGES_DEBUG := \
     ss \
     start_with_lockagent \
     strace \
+    su \
     sanitizer-status \
     tracepath \
     tracepath6 \
@@ -481,11 +483,6 @@ PRODUCT_PACKAGES_DEBUG := \
     unwind_info \
     unwind_reg_info \
     unwind_symbols \
-
-ifeq ($(LINEAGE_BUILD),)
-PRODUCT_PACKAGES_DEBUG += \
-    su
-endif
 
 # The set of packages whose code can be loaded by the system server.
 PRODUCT_SYSTEM_SERVER_APPS += \

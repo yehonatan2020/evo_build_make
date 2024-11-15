@@ -2821,7 +2821,7 @@ endef
 # $(2): the classes.dex file.
 define create-dex-jar
 find $(dir $(2)) -maxdepth 1 -name "classes*.dex" | sort > $(1).lst
-$(SOONG_ZIP) -L 0 -o $(1) -C $(dir $(2)) -l $(1).lst
+$(SOONG_ZIP) -o $(1) -C $(dir $(2)) -l $(1).lst
 endef
 
 # Add java resources added by the current module to an existing package.
@@ -3328,9 +3328,9 @@ endef
 # files and we should not strip.
 define dexpreopt-remove-classes.dex
 $(hide) if (zipinfo $1 '*.dex' 2>/dev/null | grep -v ' stor ' >/dev/null) ; then \
-$(SOONG_ZIP) --quiet --delete $(1) classes.dex; \
+zip --quiet --delete $(1) classes.dex; \
 dex_index=2; \
-while $(SOONG_ZIP) --quiet --delete $(1) classes$${dex_index}.dex > /dev/null; do \
+while zip --quiet --delete $(1) classes$${dex_index}.dex > /dev/null; do \
   let dex_index=dex_index+1; \
 done \
 fi
@@ -3933,7 +3933,6 @@ $(foreach source,$(ENFORCE_RRO_SOURCES), \
   $(eval enforce_rro_partition := $(word 6,$(_o))) \
   $(eval include $(BUILD_SYSTEM)/generate_enforce_rro.mk) \
   $(eval ALL_MODULES.$$(enforce_rro_source_module).REQUIRED_FROM_TARGET += $$(LOCAL_PACKAGE_NAME)) \
-  $(eval ENFORCE_RRO_PACKAGES_$$(call to-upper,$(enforce_rro_partition)) += $$(LOCAL_PACKAGE_NAME)) \
 )
 endef
 

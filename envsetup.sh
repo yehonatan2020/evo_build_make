@@ -56,7 +56,7 @@ cat <<EOF
 Run "m help" for help with the build system itself.
 
 Invoke ". build/envsetup.sh" from your shell to add the following functions to your environment:
-- lunch:      lunch <product_name>-<build_variant>
+- lunch:      lunch <product_name>-<release_type>-<build_variant>
               Selects <product_name> as the product to build, and <build_variant> as the variant to
               build, and stores those selections in the environment to be read by subsequent
               invocations of 'm' etc.
@@ -101,12 +101,6 @@ Invoke ". build/envsetup.sh" from your shell to add the following functions to y
 - refreshmod: Refresh list of modules for allmod/gomod/pathmod/outmod/installmod.
 - syswrite:   Remount partitions (e.g. system.img) as writable, rebooting if necessary.
 
-EOF
-
-    __print_lineage_functions_help
-
-cat <<EOF
-
 Environment options:
 - SANITIZE_HOST: Set to 'address' to use ASAN for all host modules.
 - ANDROID_QUIET_BUILD: set to 'true' to display only the essential messages.
@@ -116,7 +110,7 @@ EOF
     local T=$(gettop)
     local A=""
     local i
-    for i in `cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
+    for i in `cat $T/build/envsetup.sh | sed -n "/^[[:blank:]]*function /s/function \([a-z_]*\).*/\1/p" | sort | uniq`; do
       A="$A $i"
     done
     echo $A
@@ -127,8 +121,8 @@ function build_build_var_cache()
 {
     local T=$(gettop)
     # Grep out the variable names from the script.
-    cached_vars=(`cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`)
-    cached_abs_vars=(`cat $T/build/envsetup.sh $T/vendor/lineage/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`)
+    cached_vars=(`cat $T/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`)
+    cached_abs_vars=(`cat $T/build/envsetup.sh | tr '()' '  ' | awk '{for(i=1;i<=NF;i++) if($i~/get_abs_build_var/) print $(i+1)}' | sort -u | tr '\n' ' '`)
     # Call the build system to dump the "<val>=<value>" pairs as a shell script.
     build_dicts_script=`\builtin cd $T; build/soong/soong_ui.bash --dumpvars-mode \
                         --vars="${cached_vars[*]}" \
@@ -210,15 +204,8 @@ function check_product()
         echo "Couldn't locate the top of the tree.  Try setting TOP." >&2
         return
     fi
-    if (echo -n $1 | grep -q -e "^lineage_") ; then
-        LINEAGE_BUILD=$(echo -n $1 | sed -e 's/^lineage_//g')
-    else
-        LINEAGE_BUILD=
-    fi
-    export LINEAGE_BUILD
-
         TARGET_PRODUCT=$1 \
-        TARGET_RELEASE=$2 \
+        TARGET_RELEASE= \
         TARGET_BUILD_VARIANT= \
         TARGET_BUILD_TYPE= \
         TARGET_BUILD_APPS= \
@@ -426,6 +413,8 @@ function set_stuff_for_environment()
 {
     set_lunch_paths
     set_sequence_number
+
+    export ANDROID_BUILD_TOP=$(gettop)
 }
 
 function set_sequence_number()
@@ -787,8 +776,8 @@ function lunch()
         answer=$1
     else
         print_lunch_menu
-        echo "Which would you like? [aosp_cf_x86_64_phone-ap2a-eng]"
-        echo -n "Pick from common choices above (e.g. 13) or specify your own (e.g. aosp_barbet-ap2a-eng): "
+        echo "Which would you like? [aosp_cf_x86_64_phone-trunk_staging-eng]"
+        echo -n "Pick from common choices above (e.g. 13) or specify your own (e.g. aosp_barbet-trunk_staging-eng): "
         read answer
         used_lunch_menu=1
     fi
@@ -797,7 +786,7 @@ function lunch()
 
     if [ -z "$answer" ]
     then
-        selection=aosp_cf_x86_64_phone-ap2a-eng
+        selection=aosp_cf_x86_64_phone-trunk_staging-eng
     elif (echo -n $answer | grep -q -e "^[0-9][0-9]*$")
     then
         local choices=($(TARGET_BUILD_APPS= TARGET_PRODUCT= TARGET_RELEASE= TARGET_BUILD_VARIANT= get_build_var COMMON_LUNCH_CHOICES 2>/dev/null))
@@ -817,37 +806,18 @@ function lunch()
 
     export TARGET_BUILD_APPS=
 
-    # This must be <product>-<variant>
-    local product variant
+    # This must be <product>-<release>-<variant>
+    local product release variant
     # Split string on the '-' character.
-    IFS="-" read -r product variant <<< "$selection"
+    IFS="-" read -r product release variant <<< "$selection"
 
-    if [[ -z "$product" ]] || [[ -z "$variant" ]]
+    if [[ -z "$product" ]] || [[ -z "$release" ]] || [[ -z "$variant" ]]
     then
         echo
         echo "Invalid lunch combo: $selection"
-        echo "Valid combos must be of the form <product>-<variant>"
+        echo "Valid combos must be of the form <product>-<release>-<variant>"
         return 1
     fi
-
-    if ! check_product $product $release
-    then
-        # if we can't find a product, try to grab it off the LineageOS GitHub
-        T=$(gettop)
-        cd $T > /dev/null
-        vendor/lineage/build/tools/roomservice.py $product
-        cd - > /dev/null
-        check_product $product $release
-    else
-        T=$(gettop)
-        cd $T > /dev/null
-        vendor/lineage/build/tools/roomservice.py $product true
-        cd - > /dev/null
-    fi
-
-    # Always pick the latest release
-    release=$(grep "BUILD_ID" build/make/core/build_id.mk | tail -1 | cut -d '=' -f 2 | cut -d '.' -f 1 | tr '[:upper:]' '[:lower:]')
-    export TARGET_RELEASE=$release
 
     TARGET_PRODUCT=$product \
     TARGET_BUILD_VARIANT=$variant \
@@ -859,15 +829,6 @@ function lunch()
         then
             echo "Did you mean -${product/*_/}? (dash instead of underscore)"
         fi
-        echo
-        echo "** Don't have a product spec for: '$product'"
-        echo "** Do you have the right repo manifest?"
-        product=
-    fi
-
-    if [ -z "$product" -o -z "$variant" ]
-    then
-        echo
         return 1
     fi
     export TARGET_PRODUCT=$(get_build_var TARGET_PRODUCT)
@@ -876,22 +837,16 @@ function lunch()
     # Note this is the string "release", not the value of the variable.
     export TARGET_BUILD_TYPE=release
 
-    check_product $product
-
-    local prebuilt_kernel=$(get_build_var TARGET_PREBUILT_KERNEL)
-    if [ -z "$prebuilt_kernel" ]; then
-      export INLINE_KERNEL_BUILDING=true
-    else
-      unset INLINE_KERNEL_BUILDING
-    fi
-
     [[ -n "${ANDROID_QUIET_BUILD:-}" ]] || echo
-
-    fixup_common_out_dir
 
     set_stuff_for_environment
     [[ -n "${ANDROID_QUIET_BUILD:-}" ]] || printconfig
 
+    if [ "${TARGET_BUILD_VARIANT}" = "userdebug" ] && [[  -z "${ANDROID_QUIET_BUILD}" ]]; then
+      echo
+      echo "Want FASTER LOCAL BUILDS? Use -eng instead of -userdebug (however for" \
+        "performance benchmarking continue to use userdebug)"
+    fi
     if [ $used_lunch_menu -eq 1 ]; then
       echo
       echo "Hint: next time you can simply run 'lunch $selection'"
@@ -928,7 +883,7 @@ function tapas()
     local showHelp="$(echo $* | xargs -n 1 echo | \grep -E '^(help)$' | xargs)"
     local arch="$(echo $* | xargs -n 1 echo | \grep -E '^(arm|x86|arm64|x86_64)$' | xargs)"
     # TODO(b/307975293): Expand tapas to take release arguments (and update hmm() usage).
-    local release="ap2a"
+    local release="trunk_staging"
     local variant="$(echo $* | xargs -n 1 echo | \grep -E '^(user|userdebug|eng)$' | xargs)"
     local density="$(echo $* | xargs -n 1 echo | \grep -E '^(ldpi|mdpi|tvdpi|hdpi|xhdpi|xxhdpi|xxxhdpi|alldpi)$' | xargs)"
     local keys="$(echo $* | xargs -n 1 echo | \grep -E '^(devkeys)$' | xargs)"
@@ -1001,7 +956,7 @@ function banchan()
     local showHelp="$(echo $* | xargs -n 1 echo | \grep -E '^(help)$' | xargs)"
     local product="$(echo $* | xargs -n 1 echo | \grep -E '^(.*_)?(arm|x86|arm64|riscv64|x86_64|arm64only|x86_64only)$' | xargs)"
     # TODO: Expand banchan to take release arguments (and update hmm() usage).
-    local release="ap2a"
+    local release="trunk_staging"
     local variant="$(echo $* | xargs -n 1 echo | \grep -E '^(user|userdebug|eng)$' | xargs)"
     local apps="$(echo $* | xargs -n 1 echo | \grep -E -v '^(user|userdebug|eng|(.*_)?(arm|x86|arm64|riscv64|x86_64))$' | xargs)"
 
@@ -2128,29 +2083,3 @@ set_global_paths
 source_vendorsetup
 addcompletions
 
-# check and set ccache path on envsetup
-if [ -z "${CCACHE_EXEC}" ]; then
-    if command -v ccache &>/dev/null; then
-        export USE_CCACHE=1
-        export CCACHE_EXEC=$(command -v ccache)
-        [ -z "${CCACHE_DIR}" ] && export CCACHE_DIR="$HOME/.ccache"
-        echo "ccache directory found, CCACHE_DIR set to: $CCACHE_DIR" >&2
-        CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-40G}"
-        DIRECT_MODE="${DIRECT_MODE:-false}"
-        $CCACHE_EXEC -o compression=true -o direct_mode="${DIRECT_MODE}" -M "${CCACHE_MAXSIZE}" \
-            && echo "ccache enabled, CCACHE_EXEC set to: $CCACHE_EXEC, CCACHE_MAXSIZE set to: $CCACHE_MAXSIZE, direct_mode set to: $DIRECT_MODE" >&2 \
-            || echo "Warning: Could not set cache size limit. Please check ccache configuration." >&2
-        CURRENT_CCACHE_SIZE=$(du -sh "$CCACHE_DIR" 2>/dev/null | cut -f1)
-        if [ -n "$CURRENT_CCACHE_SIZE" ]; then
-            echo "Current ccache size is: $CURRENT_CCACHE_SIZE" >&2
-        else
-            echo "No cached files in ccache." >&2
-        fi
-    else
-        echo "Error: ccache not found. Please install ccache." >&2
-    fi
-fi
-
-export ANDROID_BUILD_TOP=$(gettop)
-
-. $ANDROID_BUILD_TOP/vendor/lineage/build/envsetup.sh
