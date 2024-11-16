@@ -22,29 +22,10 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/media_product.mk)
 
 # /product packages
 PRODUCT_PACKAGES += \
-<<<<<<< HEAD
-    Browser2 \
-    Calendar \
-    Camera2 \
-    Contacts \
-    DeskClock \
-    Gallery2 \
-    LatinIME \
-    Music \
-=======
->>>>>>> c2c38049aa (Remove those things we won't need)
     preinstalled-packages-platform-handheld-product.xml \
     QuickSearchBox \
     SettingsIntelligence \
     frameworks-base-overlays
 
-<<<<<<< HEAD
-=======
-ifeq ($(LINEAGE_BUILD),)
-PRODUCT_PACKAGES += \
-    LatinIME
-endif
-
->>>>>>> c2c38049aa (Remove those things we won't need)
 PRODUCT_PACKAGES_DEBUG += \
     frameworks-base-overlays-debug
